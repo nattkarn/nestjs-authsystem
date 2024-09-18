@@ -14,24 +14,24 @@ datasource db {
 }
 
 model User {
-  id                 Int      @id @default(autoincrement())
-  username           String   @unique
-  email              String   @unique
-  password           String
-  provider           String   @default("local")
-  name               String   @default("")
-  tel                String   @default("")
-  Token              String   @default("")
-  resetPasswordToken String   @default("")
-  confirmationToken  String   @default("")
-  confirmed          Boolean  @default(false)
-  blocked            Boolean  @default(false)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                          Int       @id @default(autoincrement())
+  username                    String    @unique
+  email                       String    @unique
+  password                    String
+  provider                    String    @default("local")
+  name                        String    @default("")
+  tel                         String    @default("")
+  Token                       String    @default("")
+  resetPasswordToken          String?    @default("")
+  confirmationToken           String    @default("")
+  resetPasswordTokenExpiresAt DateTime?
+  confirmed                   Boolean   @default(false)
+  blocked                     Boolean   @default(false)
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
 
-  roleId Int  
+  roleId Int
   role   Role @relation(fields: [roleId], references: [id])
-  
 }
 
 model Role {

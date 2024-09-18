@@ -6,7 +6,7 @@ import { UpdateAuthDto } from './dto/update-auth.dto';
 
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
 
   @Get('/local/test')
@@ -14,7 +14,7 @@ export class AuthController {
   TestGet() {
     const token = this.authService.testTokenGeneration();
     console.log(token);
-    return JSON.stringify({"token": token})
+    return JSON.stringify({ "token": token })
   }
 
   @Post('/local/register')
@@ -28,15 +28,14 @@ export class AuthController {
 
   @Get('/local/activation')
   // @Redirect('http://localhost:3000', 302)
-  async activate(@Query('token') token: string){
+  async activate(@Query('token') token: string) {
     const req = await this.authService.activateUser(token);
-    if(req)
-      {
-        return {
-          url: 'http://localhost:3000/login',
-          message: 'Activation Successful'
-        }
-      } 
+    if (req) {
+      return {
+        url: 'http://localhost:3000/login',
+        message: 'Activation Successful'
+      }
+    }
   }
 
   @Post('/local/login')
@@ -46,5 +45,23 @@ export class AuthController {
     const req = this.authService.localLogin(loginAuthDto);
     return req;
   }
- 
+
+  // In your controller
+  @Post('request-password-reset')
+  @HttpCode(HttpStatus.OK)
+  // @Redirect('http://localhost:3000', 302)
+
+  async requestPasswordReset(@Body('email') email: string) {
+    return this.authService.requestPasswordReset(email);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(
+    @Query('token') token: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return this.authService.resetPassword(token, newPassword);
+  }
+
 }
