@@ -1,34 +1,50 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Redirect, Query } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
+import { LoginAuthDto } from './dto/login-auth.dto';
 import { UpdateAuthDto } from './dto/update-auth.dto';
 
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post()
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
+
+  @Get('/local/test')
+  @HttpCode(HttpStatus.CREATED)
+  TestGet() {
+    const token = this.authService.testTokenGeneration();
+    console.log(token);
+    return JSON.stringify({"token": token})
   }
 
-  @Get()
-  findAll() {
-    return this.authService.findAll();
+  @Post('/local/register')
+  @HttpCode(HttpStatus.CREATED)
+  localRegister(@Body() createAuthDto: CreateAuthDto) {
+    // console.log(createAuthDto);
+    const req = this.authService.localRegister(createAuthDto);
+    return req;
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.authService.findOne(+id);
+
+  @Get('/local/activation')
+  // @Redirect('http://localhost:3000', 302)
+  async activate(@Query('token') token: string){
+    const req = await this.authService.activateUser(token);
+    if(req)
+      {
+        return {
+          url: 'http://localhost:3000/login',
+          message: 'Activation Successful'
+        }
+      } 
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateAuthDto: UpdateAuthDto) {
-    return this.authService.update(+id, updateAuthDto);
+  @Post('/local/login')
+  @HttpCode(HttpStatus.OK)
+  localLogin(@Body() loginAuthDto: LoginAuthDto) {
+    // console.log(createAuthDto);
+    const req = this.authService.localLogin(loginAuthDto);
+    return req;
   }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.authService.remove(+id);
-  }
+ 
 }
