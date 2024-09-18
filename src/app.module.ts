@@ -6,6 +6,7 @@ import { PrismaService } from './prisma/prisma.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { JwtStrategy } from './auth/strategies/jwt.strategy';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { JwtStrategy } from './auth/strategies/jwt.strategy';
         isGlobal: true,
         envFilePath: '.env',
       })
-    ,AuthModule, PrismaModule],
+    ,AuthModule, PrismaModule, UsersModule],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtStrategy],
 })
