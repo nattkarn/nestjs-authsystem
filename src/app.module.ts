@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
 import { JwtStrategy } from './auth/strategies/jwt.strategy';
 import { UsersModule } from './users/users.module';
+import { RolesModule } from './roles/roles.module';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { UsersModule } from './users/users.module';
         isGlobal: true,
         envFilePath: '.env',
       })
-    ,AuthModule, PrismaModule, UsersModule],
+    ,AuthModule, PrismaModule, UsersModule, RolesModule],
   controllers: [AppController],
   providers: [AppService, PrismaService, JwtStrategy],
 })

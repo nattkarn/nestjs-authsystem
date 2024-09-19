@@ -179,6 +179,8 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: {
         email: loginAuthDto.email
+      },include: {
+        role: true
       }
     });
     if (!user) {
@@ -190,11 +192,14 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+
     const jwtPayload = {
       sub: user.id,
       email: user.email,
-      iat: Date.now(),
-      // expire: Date.now() + 60 * 60 * 1000, // 1 hour later
+      iat: currentTimeInSeconds,
+      exp: currentTimeInSeconds + 3600, // Expires in 3600 seconds (1 hour)
+      role: user.role.nameRole
     };
 
     const token = this.jwtService.sign(jwtPayload);
@@ -204,7 +209,8 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        roleName: user.role.nameRole
       }
     }
 

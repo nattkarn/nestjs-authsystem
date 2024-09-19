@@ -14,4 +14,5 @@ export class Auth {
     confirmed?: boolean;
     blocked?: boolean;
     roleId: number;
+    roleName: string;
 }

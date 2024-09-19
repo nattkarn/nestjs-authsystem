@@ -18,7 +18,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
         // console.log('JWT_SECRET:', secret); // This should log your secret key
         return {
           secret,
-          signOptions: { expiresIn: '60m' },
+          // signOptions: { expiresIn: '60m' },
         };
       },
       inject: [ConfigService],
