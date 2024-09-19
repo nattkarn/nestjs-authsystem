@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, Redirect, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, HttpCode, HttpStatus, Query, Request, Res, Redirect } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { LoginAuthDto } from './dto/login-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { GoogleAuthGuard } from './google-auth.guard';
+
 
 @Controller('api/auth')
 export class AuthController {
@@ -64,4 +65,23 @@ export class AuthController {
     return this.authService.resetPassword(token, newPassword);
   }
 
+  // Google Auth Session
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth(@Request() req) {
+    // Initiates the Google OAuth process
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  
+  async googleAuthRedirect(@Request() req, @Res({ passthrough: true }) res: Response) {
+    const user = await this.authService.googleLogin(req);
+    // console.log('user', user)
+    
+    
+    // Redirect('http://localhost:3000', 302)
+    return user
+    
+  }
 }

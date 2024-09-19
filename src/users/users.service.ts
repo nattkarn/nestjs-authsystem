@@ -7,6 +7,7 @@ import { BandedUserDto } from './dto/banded-user.dto';
 @Injectable()
 export class UsersService {
 
+
   constructor(
     private prisma: PrismaService,
   ) { }
@@ -174,7 +175,7 @@ export class UsersService {
 
   }
 
-  async banded(bandedUserDto: BandedUserDto , confirm: boolean) {
+  async banded(bandedUserDto: BandedUserDto, confirm: boolean) {
     if (!confirm) {
       throw new BadRequestException('confirm is required');
     }
@@ -220,7 +221,7 @@ export class UsersService {
   }
 
 
-  async unblock(bandedUserDto: BandedUserDto , confirm: boolean) {
+  async unblock(bandedUserDto: BandedUserDto, confirm: boolean) {
     if (!confirm) {
       throw new BadRequestException('confirm is required');
     }

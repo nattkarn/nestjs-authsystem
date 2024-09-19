@@ -179,7 +179,7 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: {
         email: loginAuthDto.email
-      },include: {
+      }, include: {
         role: true
       }
     });
@@ -217,92 +217,163 @@ export class AuthService {
   }
 
 
-
-
-  // Method to request a password reset
-  async requestPasswordReset(email: string): Promise<{ message: string }> {
-    if (!email) {
-      throw new BadRequestException('Email is required');
+  // เพิ่ม google Login เข้ามา
+  async googleLogin(req): Promise<any> {
+    if (!req.user) {
+      throw new Error('Google login failed: No user information received.');
     }
+    console.log('req.user', req.user);
+    const { email, name, picture, googleId } = req.user;
+    let user = await this.prisma.user.findFirst({
+      where: {
+        email: email
+      },include: {
+        role: true
+      }
+    }
+    );
 
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-    });
-
-    // Always return the same message for security reasons
     if (!user) {
-      return {
-        message:
-          'If that email address is in our system, we have sent a password reset link to it.',
-      };
-    }
-
-    const resetToken = uuidv4();
-    const tokenExpiry = new Date(Date.now() + 3600000); // Token expires in 1 hour
-
-    try {
-      await this.prisma.user.update({
-        where: { id: user.id },
+      await this.prisma.user.create({
         data: {
-          resetPasswordToken: resetToken,
-          resetPasswordTokenExpiresAt: tokenExpiry,
-        },
+          username: '',
+          email: email,
+          password: '',
+          provider: 'google', 
+          name: name || '',
+          tel: '',
+          Token: '',
+          googleId: googleId,
+          resetPasswordToken: '',
+          confirmationToken: '',
+          confirmed: true,
+          blocked: false,
+          roleId: 2
+        }
       });
 
       const baseUrl = this.configService.get<string>('BASE_URL');
-      const resetLink = `${baseUrl}/api/auth/reset-password?token=${resetToken}`;
+
+      // const activationLink = `${baseUrl}/api/auth/local/activation?token=${activationToken}`;
 
       await this.mailerService.sendMail({
         to: email,
-        subject: 'Password Reset Request',
-        text: `You can reset your password using the following link: ${resetLink}`,
+        subject: 'Account Activation',
+        text: `Account has been created. You can Sing in now at ${baseUrl}.`,
       });
-
-      return {
-        message:
-          'If that email address is in our system, we have sent a password reset link to it.',
-      };
-    } catch (error) {
-      throw new Error(`Error sending password reset email: ${error.message}`);
+      
     }
 
+    
+
+    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+
+    const jwtPayload = {
+      sub: user.id,
+      email: user.email,
+      iat: currentTimeInSeconds,
+      exp: currentTimeInSeconds + 3600, // Expires in 3600 seconds (1 hour)
+      role: user.role.nameRole
+    };
+
+    const token = this.jwtService.sign(jwtPayload);
+
+    return {
+      jwt: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        roleName: user.role.nameRole
+      }
+    }
   }
 
-  // Method to reset the password using the token
-  async resetPassword(
-    token: string,
-    newPassword: string,
-  ): Promise<{ message: string }> {
-    if (!token || !newPassword) {
-      throw new BadRequestException('Token and new password are required');
-    }
 
-    const user = await this.prisma.user.findFirst({
-      where: {
-        resetPasswordToken: token,
-        resetPasswordTokenExpiresAt: {
-          gt: new Date(),
-        },
-      },
-    });
+  // Method to request a password reset
+  async requestPasswordReset(email: string): Promise < { message: string } > {
+  if(!email) {
+    throw new BadRequestException('Email is required');
+  }
 
-    if (!user) {
-      throw new BadRequestException('Invalid or expired token');
-    }
+    const user = await this.prisma.user.findUnique({
+    where: { email },
+  });
 
-    const saltOrRounds = 10;
-    const hashedPassword = await bcrypt.hash(newPassword, saltOrRounds);
+  // Always return the same message for security reasons
+  if(!user) {
+    return {
+      message:
+        'If that email address is in our system, we have sent a password reset link to it.',
+    };
+  }
 
+    const resetToken = uuidv4();
+  const tokenExpiry = new Date(Date.now() + 3600000); // Token expires in 1 hour
+
+  try {
     await this.prisma.user.update({
       where: { id: user.id },
       data: {
-        password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordTokenExpiresAt: null,
+        resetPasswordToken: resetToken,
+        resetPasswordTokenExpiresAt: tokenExpiry,
       },
     });
 
-    return { message: 'Password has been successfully reset' };
+    const baseUrl = this.configService.get<string>('BASE_URL');
+    const resetLink = `${baseUrl}/api/auth/reset-password?token=${resetToken}`;
+
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Password Reset Request',
+      text: `You can reset your password using the following link: ${resetLink}`,
+    });
+
+    return {
+      message:
+        'If that email address is in our system, we have sent a password reset link to it.',
+    };
+  } catch(error) {
+    throw new Error(`Error sending password reset email: ${error.message}`);
+  }
+
+}
+
+  // Method to reset the password using the token
+  async resetPassword(
+  token: string,
+  newPassword: string,
+): Promise < { message: string } > {
+  if(!token || !newPassword) {
+  throw new BadRequestException('Token and new password are required');
+}
+
+const user = await this.prisma.user.findFirst({
+  where: {
+    resetPasswordToken: token,
+    resetPasswordTokenExpiresAt: {
+      gt: new Date(),
+    },
+  },
+});
+
+if (!user) {
+  throw new BadRequestException('Invalid or expired token');
+}
+
+const saltOrRounds = 10;
+const hashedPassword = await bcrypt.hash(newPassword, saltOrRounds);
+
+await this.prisma.user.update({
+  where: { id: user.id },
+  data: {
+    password: hashedPassword,
+    resetPasswordToken: null,
+    resetPasswordTokenExpiresAt: null,
+  },
+});
+
+return { message: 'Password has been successfully reset' };
   }
 }
 
