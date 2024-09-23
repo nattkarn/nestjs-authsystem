@@ -199,9 +199,6 @@ export class AuthService {
 
 
 
-
-
-
   async localLogin(loginAuthDto: LoginAuthDto): Promise<{ jwt: string; user: Partial<Auth> }> {
     if (!loginAuthDto.email || !loginAuthDto.password) {
       throw new BadRequestException('email and password are required');
@@ -218,7 +215,7 @@ export class AuthService {
         }
       });
 
-      if(user.firstTime == true){
+      if (user.firstTime == true) {
         await this.prisma.user.update({
           where: {
             id: user.id
@@ -269,6 +266,29 @@ export class AuthService {
 
 
 
+  }
+
+  // Method to check if a token is expired
+  checkTokenExpiration(token: string): boolean {
+    try {
+      const decodedToken = this.jwtService.decode(token) as any;
+
+      // Check if token has the 'exp' field
+      if (!decodedToken || !decodedToken.exp) {
+        throw new BadRequestException('Invalid token');
+      }
+
+      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+
+      // If current time is greater than exp time, token is expired
+      if (currentTimeInSeconds > decodedToken.exp) {
+        return true; // Token is expired
+      }
+
+      return false; // Token is still valid
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 
 

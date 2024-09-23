@@ -38,7 +38,12 @@ export class AuthController {
   }
 
 
-
+  @Get('/local/tokenExpired')
+  @HttpCode(HttpStatus.OK)
+  async tokenExpired(@Query('token') token: string) {
+    const req = await this.authService.checkTokenExpiration(token);
+    return req
+  }
 
 
   @Get('/local/activation')
