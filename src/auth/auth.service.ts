@@ -12,6 +12,7 @@ import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid'; // For generating unique tokens
 import { MailerService } from '@nestjs-modules/mailer';
 import { console } from 'inspector';
+import { CheckUserDto } from './dto/checkUser.dto';
 
 @Injectable()
 export class AuthService {
@@ -55,6 +56,28 @@ export class AuthService {
   }
 
 
+  async checkUserExists(checkUserDto: CheckUserDto): Promise<boolean> {
+    console.log('email', checkUserDto.email)
+    if (!checkUserDto.email) {
+      throw new BadRequestException('Email is required');
+    }
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: {
+          email: checkUserDto.email
+        }
+      });
+      if (user) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      throw new BadRequestException('Error checking user exists');
+    }
+
+  }
+
+
   async localRegister(createAuthDto: CreateAuthDto): Promise<{ message: string, data: Partial<Auth> }> {
 
     if (!createAuthDto) {
@@ -84,7 +107,8 @@ export class AuthService {
           confirmationToken: createAuthDto.confirmationToken || '',
           confirmed: createAuthDto.confirmed || false,
           blocked: createAuthDto.blocked || false,
-          roleId: createAuthDto.roleId
+          roleId: createAuthDto.roleId,
+          firstTime: true
         }
       });
 
@@ -94,16 +118,24 @@ export class AuthService {
 
       const baseUrl = this.configService.get<string>('BASE_URL');
 
-      const activationLink = `${baseUrl}/api/auth/local/activation?token=${activationToken}`;
+      const activationLink = `http://localhost:3000/activation/${activationToken}`;
 
       await this.mailerService.sendMail({
         to: createAuthDto.email,
-        subject: 'Account Activation',
-        text: `Please activate your account using the following link: ${activationLink}`,
+        subject: 'Account Activation - Action Required',
+        html: `
+          <p>Dear ${createAuthDto.name || createAuthDto.username},</p>
+          <p>Thank you for registering with us. To complete your registration, please activate your account by clicking the link below:</p>
+          <p><a href="${activationLink}" target="_blank">${activationLink}</a></p>
+          <p>If you did not create an account with us, please ignore this email or contact our support team immediately.</p>
+          <p>Best regards,</p>
+          <p>Your Company Name</p>
+          <p>Contact Support: support@yourcompany.com</p>
+        `,
       });
 
       return {
-        message: 'user created',
+        message: 'User created successfully. An activation email has been sent.',
         data: {
           username: user.username,
           email: user.email,
@@ -147,8 +179,9 @@ export class AuthService {
           id: user.id
         },
         data: {
-          Token: '',
-          confirmed: true
+          // Token: '',
+          confirmed: true,
+          // firstTime: true
         }
       });
 
@@ -175,44 +208,66 @@ export class AuthService {
     }
 
 
+    try {
 
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: loginAuthDto.email
-      }, include: {
-        role: true
+      const user = await this.prisma.user.findUnique({
+        where: {
+          email: loginAuthDto.email
+        }, include: {
+          role: true
+        }
+      });
+
+      if(user.firstTime == true){
+        await this.prisma.user.update({
+          where: {
+            id: user.id
+          },
+          data: {
+            firstTime: false,
+            Token: ''
+          }
+        })
       }
-    });
-    if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
 
-    const isMatch = await bcrypt.compare(loginAuthDto.password, user.password);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid email or password');
-    }
+      if (!user.confirmed) {
+        throw new UnauthorizedException('Please confirm your email');
+      }
+      if (!user) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
 
-    const currentTimeInSeconds = Math.floor(Date.now() / 1000);
+      const isMatch = await bcrypt.compare(loginAuthDto.password, user.password);
+      if (!isMatch) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
 
-    const jwtPayload = {
-      sub: user.id,
-      email: user.email,
-      iat: currentTimeInSeconds,
-      exp: currentTimeInSeconds + 3600, // Expires in 3600 seconds (1 hour)
-      role: user.role.nameRole
-    };
+      const currentTimeInSeconds = Math.floor(Date.now() / 1000);
 
-    const token = this.jwtService.sign(jwtPayload);
-
-    return {
-      jwt: token,
-      user: {
-        id: user.id,
-        username: user.username,
+      const jwtPayload = {
+        sub: user.id,
         email: user.email,
-        roleName: user.role.nameRole
+        iat: currentTimeInSeconds,
+        exp: currentTimeInSeconds + 3600, // Expires in 3600 seconds (1 hour)
+        role: user.role.nameRole
+      };
+
+      const token = this.jwtService.sign(jwtPayload);
+
+      return {
+        jwt: token,
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          roleName: user.role.nameRole
+        }
       }
+    } catch (error) {
+      throw new UnauthorizedException('Invalid email or password');
     }
+
+
 
   }
 
@@ -227,7 +282,7 @@ export class AuthService {
     let user = await this.prisma.user.findFirst({
       where: {
         email: email
-      },include: {
+      }, include: {
         role: true
       }
     }
@@ -239,7 +294,7 @@ export class AuthService {
           username: '',
           email: email,
           password: '',
-          provider: 'google', 
+          provider: 'google',
           name: name || '',
           tel: '',
           Token: '',
@@ -261,10 +316,10 @@ export class AuthService {
         subject: 'Account Activation',
         text: `Account has been created. You can Sing in now at ${baseUrl}.`,
       });
-      
+
     }
 
-    
+
 
     const currentTimeInSeconds = Math.floor(Date.now() / 1000);
 
@@ -291,89 +346,89 @@ export class AuthService {
 
 
   // Method to request a password reset
-  async requestPasswordReset(email: string): Promise < { message: string } > {
-  if(!email) {
-    throw new BadRequestException('Email is required');
-  }
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    if (!email) {
+      throw new BadRequestException('Email is required');
+    }
 
     const user = await this.prisma.user.findUnique({
-    where: { email },
-  });
+      where: { email },
+    });
 
-  // Always return the same message for security reasons
-  if(!user) {
-    return {
-      message:
-        'If that email address is in our system, we have sent a password reset link to it.',
-    };
-  }
+    // Always return the same message for security reasons
+    if (!user) {
+      return {
+        message:
+          'If that email address is in our system, we have sent a password reset link to it.',
+      };
+    }
 
     const resetToken = uuidv4();
-  const tokenExpiry = new Date(Date.now() + 3600000); // Token expires in 1 hour
+    const tokenExpiry = new Date(Date.now() + 3600000); // Token expires in 1 hour
 
-  try {
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetPasswordToken: resetToken,
-        resetPasswordTokenExpiresAt: tokenExpiry,
-      },
-    });
+    try {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          resetPasswordToken: resetToken,
+          resetPasswordTokenExpiresAt: tokenExpiry,
+        },
+      });
 
-    const baseUrl = this.configService.get<string>('BASE_URL');
-    const resetLink = `${baseUrl}/api/auth/reset-password?token=${resetToken}`;
+      const baseUrl = this.configService.get<string>('BASE_URL');
+      const resetLink = `${baseUrl}/api/auth/reset-password?token=${resetToken}`;
 
-    await this.mailerService.sendMail({
-      to: email,
-      subject: 'Password Reset Request',
-      text: `You can reset your password using the following link: ${resetLink}`,
-    });
+      await this.mailerService.sendMail({
+        to: email,
+        subject: 'Password Reset Request',
+        text: `You can reset your password using the following link: ${resetLink}`,
+      });
 
-    return {
-      message:
-        'If that email address is in our system, we have sent a password reset link to it.',
-    };
-  } catch(error) {
-    throw new Error(`Error sending password reset email: ${error.message}`);
+      return {
+        message:
+          'If that email address is in our system, we have sent a password reset link to it.',
+      };
+    } catch (error) {
+      throw new Error(`Error sending password reset email: ${error.message}`);
+    }
+
   }
-
-}
 
   // Method to reset the password using the token
   async resetPassword(
-  token: string,
-  newPassword: string,
-): Promise < { message: string } > {
-  if(!token || !newPassword) {
-  throw new BadRequestException('Token and new password are required');
-}
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    if (!token || !newPassword) {
+      throw new BadRequestException('Token and new password are required');
+    }
 
-const user = await this.prisma.user.findFirst({
-  where: {
-    resetPasswordToken: token,
-    resetPasswordTokenExpiresAt: {
-      gt: new Date(),
-    },
-  },
-});
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetPasswordToken: token,
+        resetPasswordTokenExpiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
 
-if (!user) {
-  throw new BadRequestException('Invalid or expired token');
-}
+    if (!user) {
+      throw new BadRequestException('Invalid or expired token');
+    }
 
-const saltOrRounds = 10;
-const hashedPassword = await bcrypt.hash(newPassword, saltOrRounds);
+    const saltOrRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltOrRounds);
 
-await this.prisma.user.update({
-  where: { id: user.id },
-  data: {
-    password: hashedPassword,
-    resetPasswordToken: null,
-    resetPasswordTokenExpiresAt: null,
-  },
-});
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetPasswordToken: null,
+        resetPasswordTokenExpiresAt: null,
+      },
+    });
 
-return { message: 'Password has been successfully reset' };
+    return { message: 'Password has been successfully reset' };
   }
 }
 

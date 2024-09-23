@@ -56,10 +56,12 @@ export class CreateAuthDto {
 
     // Ensure 'confirmed' is a boolean value
     @IsBoolean()
+    @IsOptional()
     confirmed?: boolean;
 
     // Ensure 'blocked' is a boolean value
     @IsBoolean()
+    @IsOptional()
     blocked?: boolean;
 
     // Ensure 'roleId' is an integer and is unique

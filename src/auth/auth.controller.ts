@@ -3,6 +3,8 @@ import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { LoginAuthDto } from './dto/login-auth.dto';
 import { GoogleAuthGuard } from './google-auth.guard';
+import e from 'express';
+import { CheckUserDto } from './dto/checkUser.dto';
 
 
 @Controller('api/auth')
@@ -25,6 +27,18 @@ export class AuthController {
     const req = this.authService.localRegister(createAuthDto);
     return req;
   }
+
+  @Post('/check-user')
+  @HttpCode(HttpStatus.OK)
+  checkUser(@Body() checkUserDto: CheckUserDto) {
+
+    // console.log(request)
+    const req = this.authService.checkUserExists(checkUserDto);
+    return req;
+  }
+
+
+
 
 
   @Get('/local/activation')
@@ -74,14 +88,14 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  
+
   async googleAuthRedirect(@Request() req, @Res({ passthrough: true }) res: Response) {
     const user = await this.authService.googleLogin(req);
     // console.log('user', user)
-    
-    
+
+
     // Redirect('http://localhost:3000', 302)
     return user
-    
+
   }
 }
