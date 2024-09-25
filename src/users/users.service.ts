@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserFromAdminDto} from './dto/update-user-admin.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { BandedUserDto } from './dto/banded-user.dto';
 
@@ -35,6 +36,13 @@ export class UsersService {
           tel: true,
           createdAt: true,
           updatedAt: true,
+          confirmed: true,
+          blocked: true,
+          role: {
+            select: {
+              nameRole: true
+            }
+          }
         }
       });
       return result;
@@ -74,6 +82,7 @@ export class UsersService {
             role: result.role.nameRole,
             tel: result.tel,
             confirm: result.confirmed,
+            blocked: result.blocked,
             createdAt: result.createdAt,
             updatedAt: result.updatedAt,
 
@@ -140,6 +149,56 @@ export class UsersService {
         data: {
           name: updateUserDto.name,
           tel: updateUserDto.tel
+        }
+      })
+      const result = await this.prisma.user.findUnique({
+        where: {
+          id
+        },
+        include: {
+          role: true
+        }
+
+      });
+
+      return {
+        user: [
+          {
+            id: result.id,
+            name: result.name,
+            email: result.email,
+            role: result.role.nameRole,
+            tel: result.tel,
+            confirm: result.confirmed,
+            createdAt: result.createdAt,
+            updatedAt: result.updatedAt,
+
+          }
+        ]
+      };
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+
+
+  }
+
+  async updateFromAdmin(id: number, updateUserFromAdminDto: UpdateUserFromAdminDto) {
+
+    if (!id) {
+      throw new BadRequestException('Id is required');
+    }
+    try {
+      await this.prisma.user.update({
+        where: {
+          id
+        },
+        data: {
+          name: updateUserFromAdminDto.name,
+          tel: updateUserFromAdminDto.tel,
+          confirmed: updateUserFromAdminDto.confirm,
+          blocked: updateUserFromAdminDto.block
         }
       })
       const result = await this.prisma.user.findUnique({

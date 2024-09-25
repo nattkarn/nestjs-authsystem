@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, HttpCode, HttpStatus, Req, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateUserFromAdminDto } from './dto/update-user-admin.dto';
 import { BandedUserDto } from './dto/banded-user.dto'
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { Request } from 'express';
@@ -13,7 +14,7 @@ export class UsersController {
 
 
 
-  @Get()
+  @Get('get-all-user')
   @HttpCode(HttpStatus.OK)
   findAll() {
     return this.usersService.findAll();
@@ -28,6 +29,15 @@ export class UsersController {
 
     return this.usersService.findOne(+userId);
   }
+
+  @Get('all-user')
+  async getAll(){
+
+    return this.usersService.findAll();
+  }
+
+
+
 
   @Post('get-user')
   @UseGuards(JwtAuthGuard)
@@ -61,6 +71,26 @@ export class UsersController {
     // Call the service to perform the update
     // Assuming this.usersService.updateUser would be the method to update the user details
     return this.usersService.update(+id, updateUserDto);
+  }
+
+  @Patch('update-admin/:id')
+  @UseGuards(JwtAuthGuard)
+  updateAdmin(@Req() req: Request, @Param('id') id: string, @Body() updateUserFromAdminDto: UpdateUserFromAdminDto) {
+    // Extract user role and user ID from the request object
+    const userRole = String(req['user']?.['role']);
+    const userId = String(req['user']?.['userId']);
+
+    // console.log('User Role:', userRole);
+    // console.log('User ID:', userId);
+
+    // Check if the user is not an admin and is trying to update another user's data
+    if (userRole !== 'Admin' && userId !== id) {
+      throw new UnauthorizedException('You are not authorized to access this resource');
+    }
+
+    // Call the service to perform the update
+    // Assuming this.usersService.updateUser would be the method to update the user details
+    return this.usersService.updateFromAdmin(+id, updateUserFromAdminDto);
   }
 
 
